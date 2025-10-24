@@ -1,0 +1,289 @@
+<?php
+include 'db.php';
+session_start();
+
+if (!isset($_SESSION['user'])) {
+    header("Location: login.php");
+    exit();
+}
+$user_id = $_SESSION['user']['id'];
+
+$similarFishes = [];
+$matchedFishId = null;
+$targetPath = null;
+$relativePath = null;
+$notifCount = 0; // prevent undefined
+
+// ✅ Fetch unread notification count (fixed $userId → $user_id)
+$notifQuery = $conn->prepare("
+    SELECT COUNT(*) 
+    FROM notifications 
+    WHERE user_id = ? AND is_read = 0
+");
+$notifQuery->bind_param("i", $user_id);
+$notifQuery->execute();
+$notifQuery->bind_result($notifCount);
+$notifQuery->fetch();
+$notifQuery->close();
+
+// Helper to normalize web paths for images
+function webPath($path) {
+    if (!$path) return '';
+    if (strpos($path, 'uploads/') === 0) return $path;
+    return 'uploads/' . basename($path);
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+
+    // Handle uploaded image
+    if (isset($_FILES['fish_image']) && $_FILES['fish_image']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = __DIR__ . '/uploads/';
+        if (!file_exists($uploadDir)) mkdir($uploadDir, 0755, true);
+
+        $uploadedFile = $_FILES['fish_image'];
+        $uniqueName = time() . '_' . basename($uploadedFile['name']);
+        $targetPath = $uploadDir . $uniqueName;
+        $relativePath = 'uploads/' . $uniqueName;
+
+        if (!move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
+            echo "Failed to move uploaded file.";
+            exit();
+        }
+
+    // Handle external image
+    } elseif (isset($_POST['image_path']) && !empty($_POST['image_path'])) {
+        $externalPath = $_POST['image_path'];
+        if (!file_exists($externalPath)) {
+            echo "File does not exist: $externalPath";
+            exit();
+        }
+
+        $uploadDir = __DIR__ . '/uploads/';
+        if (!file_exists($uploadDir)) mkdir($uploadDir, 0755, true);
+
+        $uniqueName = time() . '_' . basename($externalPath);
+        $targetPath = $uploadDir . $uniqueName;
+        $relativePath = 'uploads/' . $uniqueName;
+
+        if (!copy($externalPath, $targetPath)) {
+            echo "Failed to copy external image.";
+            exit();
+        }
+
+    } else {
+        echo "No image provided.";
+        exit();
+    }
+
+    // Insert into user_uploads
+    $user_id = $_SESSION['user']['id'];
+    $stmtInsert = $conn->prepare("INSERT INTO user_uploads (user_id, image_path) VALUES (?, ?)");
+    $stmtInsert->bind_param("is", $user_id, $relativePath);
+    $stmtInsert->execute();
+    $uploadId = $stmtInsert->insert_id;
+    $stmtInsert->close();
+
+    // ✅ Identify fish via FastAPI
+    identifyFish($conn, $targetPath, $similarFishes, $matchedFishId);
+
+    // ✅ Update matched_fish_id if match found
+    if ($matchedFishId) {
+        $stmtUpdate = $conn->prepare("UPDATE user_uploads SET matched_fish_id = ? WHERE id = ?");
+        $stmtUpdate->bind_param("ii", $matchedFishId, $uploadId);
+        $stmtUpdate->execute();
+        $stmtUpdate->close();
+    }
+}
+
+// ✅ Function moved outside POST block (no other changes)
+function identifyFish($conn, $filePath, &$similarFishes, &$matchedFishId) {
+    $apiUrl = "http://127.0.0.1:8000/identify";
+
+    // Prepare CURL request to FastAPI
+    $ch = curl_init();
+    $cfile = new CURLFile($filePath, mime_content_type($filePath), basename($filePath));
+
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $apiUrl,
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POSTFIELDS => ['file' => $cfile],
+        CURLOPT_HTTPHEADER => ['Accept: application/json']
+    ]);
+
+    $response = curl_exec($ch);
+
+    if (curl_errno($ch)) {
+        error_log("CURL error: " . curl_error($ch));
+        curl_close($ch);
+        return;
+    }
+
+    curl_close($ch);
+
+    // Decode JSON response
+    $result = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("JSON decode error: " . json_last_error_msg() . " Output: $response");
+        return;
+    }
+
+    if (isset($result['matched_fish']) && $result['matched_fish']) {
+        $fish = $result['matched_fish'];
+        if (isset($fish['id'])) $matchedFishId = $fish['id'];
+        $similarFishes[] = $fish;
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fish Identification Results</title>
+     <link rel="stylesheet" href="identify_fish.css?v=<?= time() ?>">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700|Montserrat:400,700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="logo"><i class="fas fa-water"></i> AquaWiki</div>
+
+    <div class="menu">
+        <a href="home.php">Home</a>
+
+        <div class="dropdown">
+            <a href="browse.php" class="dropbtn">Browse<i class="fas fa-caret-down"></i></a>
+            <div class="dropdown-content">
+                <a href="browse.php">Browse Fish</a>
+                <a href="browse_plants.php">Aquatic Plants</a>
+            </div>
+        </div>
+
+        <a href="community.php">Community</a>
+
+        <div class="dropdown">
+            <a href="profile.php" class="dropbtn">Profile <i class="fas fa-caret-down"></i></a>
+            <div class="dropdown-content">
+                <a href="upload_history.php">Upload History</a>
+                <?php if (isset($_SESSION['user'])): ?>
+                    <a href="logout.php">Logout</a>
+                <?php else: ?>
+                    <a href="login.php">Login</a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <div class="auth">
+        <?php if (isset($_SESSION['user'])): ?>
+            <a href="notification.php" id="notifBtn" style="position:relative; margin-right:8px;">
+                <i class="fas fa-bell"></i>
+                <span id="notifCount" style="
+                    background:red;
+                    color:white;
+                    border-radius:50%;
+                    padding:2px 6px;
+                    font-size:12px;
+                    position:absolute;
+                    top:-6px;
+                    right:-10px;
+                    <?= $notifCount > 0 ? '' : 'display:none;' ?>
+                "><?= (int)$notifCount ?></span>
+            </a>
+        <?php else: ?>
+            <a href="login.php" style="display:inline-flex; align-items:center; gap:4px;">
+                <i class="fas fa-user"></i> Login
+            </a>
+        <?php endif; ?>
+    </div>
+</div>
+<script>
+document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
+  let firstTapTime = 0;
+  
+  btn.addEventListener('click', e => {
+    if (window.innerWidth <= 900) {
+      const dropdown = btn.parentElement;
+      const now = Date.now();
+
+      // If dropdown is not open yet → open it, prevent navigation
+      if (!dropdown.classList.contains('open')) {
+        e.preventDefault();
+        dropdown.classList.add('open');
+        firstTapTime = now;
+      } 
+      // If tapped again quickly (within 1.5s) → follow link
+      else if (now - firstTapTime < 1500) {
+        window.location.href = btn.getAttribute('href');
+      } 
+      // Otherwise → reset timer (prevents getting stuck)
+      else {
+        e.preventDefault();
+        firstTapTime = now;
+      }
+    }
+  });
+});
+</script>
+
+<div class="result-section">
+    <h2>Uploaded Image:</h2>
+    <img src="<?php echo htmlspecialchars(webPath($relativePath ?? $targetPath)); ?>" class="uploaded-img" alt="Uploaded Fish Image">
+
+    <h2>Matching Fish:</h2>
+
+    <?php if (!empty($similarFishes)): ?>
+        <div class="fish-grid">
+            <?php foreach ($similarFishes as $fish): ?>
+                <div class="fish-card">
+                    <img src="<?php echo htmlspecialchars(webPath($fish['matched_image_url'] ?? '')); ?>" class="img" alt="<?php echo htmlspecialchars($fish['name']); ?>">
+                    <h4><?php echo htmlspecialchars($fish['name']); ?></h4>
+                    <p class="fish-description"><?php echo htmlspecialchars($fish['description'] ?? 'No description available.'); ?></p>
+                    <?php if (isset($fish['match_type'])): ?>
+                        <div class="match-type">Matched as: <b><?php echo ucfirst($fish['match_type']); ?></b></div>
+                    <?php endif; ?>
+                    <a href="fish_view.php?id=<?php echo $fish['id']; ?>">View Details</a>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php else: ?>
+        <p class="no-match">No similar fish found in the database.</p>
+    <?php endif; ?>
+</div>
+
+   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(function(){
+  function checkNotifications() {
+    $.get('community.php', { fetch_notifications: 1 }, function(count){
+      let c = parseInt(count) || 0;
+      if (c > 0) {
+        if ($("#notifCount").is(":hidden")) {
+          $("#notifCount").text(c).fadeIn(300);
+        } else {
+          $("#notifCount").text(c);
+        }
+      } else {
+        $("#notifCount").fadeOut(300);
+      }
+    });
+  }
+
+  // Auto check every 5s
+  setInterval(checkNotifications, 5000);
+  checkNotifications();
+
+  // ✅ When user visits notification page, mark all as read
+  $("#notifBtn").on("click", function(){
+    $.post("mark_notifications_read.php", function(){
+      $("#notifCount").fadeOut(300);
+    });
+  });
+});
+</script>
+
+</body>
+</html>
