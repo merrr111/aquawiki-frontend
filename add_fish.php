@@ -1,18 +1,37 @@
 <?php
 include 'db.php';
+require 'vendor/autoload.php';
 session_start();
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+use Cloudinary\Configuration\Configuration;
+use Cloudinary\Api\Upload\UploadApi;
+
+// Cloudinary configuration (replace with your credentials)
+Configuration::instance([
+  'cloud' => [
+    'cloud_name' => 'YOUR_CLOUD_NAME',   // 🔁 replace with yours
+    'api_key'    => 'YOUR_API_KEY',
+    'api_secret' => 'YOUR_API_SECRET'
+  ],
+  'url' => ['secure' => true]
+]);
+
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action']) && $_POST['action'] === "insert") {
     // Form data
     $name = $_POST['name'];
     $description = $_POST['description'];
     $female_description = $_POST['female_description'];
     $male_description = $_POST['male_description'];
+    $average_size = $_POST['average_size'] ?? '';
+    $max_size = $_POST['max_size'] ?? '';
+    $longevity = $_POST['longevity'] ?? '';
+    $shape = $_POST['shape'] ?? '';
     $scientific_name = $_POST['scientific_name'];
+    $family = $_POST['family'] ?? '';
     $year_discovered = $_POST['year_discovered'];
     $origin = $_POST['origin'];
-    $country = isset($_POST['country']) ? $_POST['country'] : "";
-    $invasive_country = isset($_POST['invasive_country']) ? $_POST['invasive_country'] : "";
+    $country = $_POST['country'] ?? "";
+    $invasive_country = $_POST['invasive_country'] ?? "";
     $type = $_POST['type'];
     $sexual_difference = $_POST['sexual_difference'];
     $temp_range = $_POST['temp_range'];
@@ -24,42 +43,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $territorial = $_POST['territorial'];
     $way_of_living = $_POST['way_of_living'];
     $diet_feeding = $_POST['diet_feeding'];
-    $compatible_fishes = isset($_POST['compatible_fishes']) ? $_POST['compatible_fishes'] : [];
+    $compatible_fishes = $_POST['compatible_fishes'] ?? [];
 
-    $upload_dir = 'uploads/';
+    // Image URLs & hashes
     $image_url = "";
     $image_male_url = "";
     $image_hash = null;
     $image_male_hash = null;
 
-    // Upload female image
-    if (isset($_FILES['image']) && $_FILES['image']['error'] === 0) {
-        $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
-        if (in_array(strtolower($ext), ['jpg','jpeg','png','gif'])) {
-            $new_name = uniqid() . '.' . $ext;
-            $path = $upload_dir . $new_name;
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $path)) {
-                $image_url = $path;
-                $hash = shell_exec("python3 compute_hash.py " . escapeshellarg($image_url));
-                if ($hash) $image_hash = trim($hash);
-            }
+    // Upload female image to Cloudinary
+    if (!empty($_FILES['image']['name']) && $_FILES['image']['error'] === 0) {
+        try {
+            $upload = (new UploadApi())->upload($_FILES['image']['tmp_name'], [
+                'folder' => 'aquawiki_fishes'
+            ]);
+            $image_url = $upload['secure_url'];
+
+            // Optional hash (if your compute_hash.py handles URLs)
+            $hash = shell_exec("python3 compute_hash.py " . escapeshellarg($image_url));
+            if ($hash) $image_hash = trim($hash);
+        } catch (Exception $e) {
+            echo "❌ Image upload failed: " . $e->getMessage();
         }
     }
 
-    // Upload male image (optional)
-    if (isset($_FILES['image_male']) && $_FILES['image_male']['error'] === 0) {
-        $ext = pathinfo($_FILES['image_male']['name'], PATHINFO_EXTENSION);
-        if (in_array(strtolower($ext), ['jpg','jpeg','png','gif'])) {
-            $new_name = uniqid() . '.' . $ext;
-            $path = $upload_dir . $new_name;
-            if (move_uploaded_file($_FILES['image_male']['tmp_name'], $path)) {
-                $image_male_url = $path;
-                $hash = shell_exec("python3 compute_hash.py " . escapeshellarg($image_male_url));
-                if ($hash) $image_male_hash = trim($hash);
-            }
+    // Upload male image to Cloudinary
+    if (!empty($_FILES['image_male']['name']) && $_FILES['image_male']['error'] === 0) {
+        try {
+            $upload = (new UploadApi())->upload($_FILES['image_male']['tmp_name'], [
+                'folder' => 'aquawiki_fishes'
+            ]);
+            $image_male_url = $upload['secure_url'];
+
+            $hash = shell_exec("python3 compute_hash.py " . escapeshellarg($image_male_url));
+            if ($hash) $image_male_hash = trim($hash);
+        } catch (Exception $e) {
+            echo "❌ Male image upload failed: " . $e->getMessage();
         }
     }
 
+    // Insert into DB
     if ($image_url) {
         $stmt = $conn->prepare("INSERT INTO fishes 
             (name, description, female_description, male_description, scientific_name, year_discovered, origin, country, invasive_country, type, 
@@ -67,13 +90,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
              breeding, sociability, territorial, way_of_living, diet_feeding, image_hash, image_male_hash)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("sssssssssssssssssssssssss", 
-            $name, $description, $female_description, $male_description, $scientific_name, $year_discovered, $origin, $country, $invasive_country, $type, 
-            $image_url, $image_male_url, $sexual_difference, $temp_range, $ph_range, $hardness_range, $natural_habitat, 
-            $breeding, $sociability, $territorial, $way_of_living, $diet_feeding, $image_hash, $image_male_hash);
+            $name, $description, $female_description, $male_description, $scientific_name, $year_discovered, 
+            $origin, $country, $invasive_country, $type, $image_url, $image_male_url, $sexual_difference, 
+            $temp_range, $ph_range, $hardness_range, $natural_habitat, $breeding, $sociability, 
+            $territorial, $way_of_living, $diet_feeding, $image_hash, $image_male_hash);
         $stmt->execute();
 
         $new_fish_id = $stmt->insert_id;
 
+        // Insert compatibility
         if (!empty($compatible_fishes)) {
             $compat_stmt = $conn->prepare("INSERT INTO fish_compatibility (fish_id, compatible_with_id) VALUES (?, ?)");
             foreach ($compatible_fishes as $compatible_id) {
@@ -83,140 +108,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $compat_stmt->close();
         }
 
+        // ✅ Trigger Python backend to generate embeddings & hashes
+        $backend_url = "https://your-render-service-name.onrender.com/update_fish_data"; // 🔁 replace with your Render backend URL
+        $postData = json_encode([
+            "fish_id" => (int)$new_fish_id,
+            "image_url" => $image_url,
+            "image_male_url" => $image_male_url
+        ]);
+
+        $ch = curl_init($backend_url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
         header("Location: admin.php");
         exit();
     }
 }
 
-// Fetch all fishes for the compatibility dropdown
+// Fetch all fishes for compatibility list
 $fishes_result = $conn->query("SELECT id, name FROM fishes ORDER BY name ASC");
 ?>
-
-<style>
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #e0f7fa, #f2f6fc);
-        margin: 0;
-        padding: 40px;
-        display: flex;
-        justify-content: center;
-    }
-
-    .container {
-        background-color: #ffffff;
-        padding: 30px 40px;
-        border-radius: 15px;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
-        height: 1350px;
-        width: 100%;
-        max-width: 1200px;
-        position: relative;
-        border: 1px solid #dce7f3;
-    }
-
-    .back-button {
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        background-color: #00bcd4;
-        color: white;
-        text-decoration: none;
-        padding: 10px 18px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        transition: background 0.3s ease, transform 0.2s ease;
-    }
-
-    .back-button:hover {
-        background-color: #0097a7;
-        transform: translateY(-2px);
-    }
-
-    h2 {
-        text-align: center;
-        margin-bottom: 30px;
-        color: #006064;
-        font-size: 26px;
-        font-weight: bold;
-    }
-
-    form {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
-    }
-
-    form input[type="text"],
-    form input[type="file"],
-    form textarea,
-    form select {
-        width: 100%;
-        padding: 12px 14px;
-        border: 1px solid #cfd8dc;
-        border-radius: 10px;
-        font-size: 15px;
-        box-sizing: border-box;
-        transition: border 0.3s ease, box-shadow 0.2s ease;
-        background-color: #fafafa;
-    }
-
-    form input[type="file"] {
-        padding: 8px;
-        background-color: #fff;
-    }
-
-    form input[type="text"]:focus,
-    form input[type="file"]:focus,
-    form textarea:focus,
-    form select:focus {
-        border-color: #00bcd4;
-        box-shadow: 0 0 6px rgba(0, 188, 212, 0.3);
-        outline: none;
-    }
-
-    textarea {
-        resize: vertical;
-        min-height: 120px;
-    }
-
-    .full-width {
-        grid-column: 1 / -1;
-    }
-
-    button[type="submit"] {
-        background: linear-gradient(135deg, #00bcd4, #0097a7);
-        color: #fff;
-        border: none;
-        padding: 14px;
-        font-size: 16px;
-        font-weight: 600;
-        border-radius: 10px;
-        cursor: pointer;
-        width: 100%;
-        transition: background 0.3s ease, transform 0.2s ease;
-    }
-
-    button[type="submit"]:hover {
-        background: linear-gradient(135deg, #0097a7, #006064);
-        transform: translateY(-2px);
-    }
-
-    @media (max-width: 768px) {
-        body {
-            padding: 20px;
-        }
-
-        .container {
-            padding: 20px;
-        }
-    }
-</style>
 
 <div class="container">
     <a href="admin.php" class="back-button">← Back</a>
     <h2>Add New Fish</h2>
     <form method="POST" action="" enctype="multipart/form-data">
+        <input type="hidden" name="action" value="insert">
+
         <input type="text" name="name" placeholder="Fish Name" required>
         <input type="text" name="scientific_name" placeholder="Scientific Name" required>
 
@@ -225,16 +147,9 @@ $fishes_result = $conn->query("SELECT id, name FROM fishes ORDER BY name ASC");
         <textarea name="male_description" placeholder="Male Description" class="full-width"></textarea>
 
         <input type="text" name="year_discovered" placeholder="Year Discovered" required>
-
-        <!-- 🗺️ Origin & Country -->
         <input type="text" name="origin" placeholder="Origin (e.g., Mekong River Basin)" required>
-
-        <!-- ✅ Country changed to text input -->
         <input type="text" name="country" placeholder="Country (e.g., Thailand, Vietnam)" required>
-
-        <!-- ✅ Invasive Country changed to text input -->
         <input type="text" name="invasive_country" placeholder="Invasive Country (e.g., Philippines, Malaysia)">
-
         <input type="text" name="type" placeholder="Type (e.g. Betta, Tetra)" required>
 
         <input type="file" name="image" required>
@@ -253,7 +168,6 @@ $fishes_result = $conn->query("SELECT id, name FROM fishes ORDER BY name ASC");
         <input type="text" name="way_of_living" placeholder="Way of Living (e.g. Nocturnal, Diurnal)" required>
         <textarea name="diet_feeding" placeholder="Diet & Feeding" class="full-width" required></textarea>
 
-        <!-- ✅ Added section for compatibility -->
         <div class="full-width">
             <label><strong>Compatible with:</strong></label>
             <select name="compatible_fishes[]" multiple style="width:100%; padding:10px; border-radius:10px; border:1px solid #ccc;">

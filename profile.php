@@ -68,10 +68,17 @@ if (!$user) {
     exit;
 }
 
-// Determine avatar path (fallback to default.png)
-$avatar_filename = (!empty($user['avatar'])) ? $user['avatar'] : 'default.png';
-$avatar_path = "assets/avatar/" . $avatar_filename;
-if (!file_exists($avatar_path)) {
+// ✅ Determine avatar path (supports Cloudinary + local fallback)
+if (!empty($user['avatar'])) {
+    if (filter_var($user['avatar'], FILTER_VALIDATE_URL)) {
+        // Cloudinary (or any remote URL)
+        $avatar_path = $user['avatar'];
+    } else {
+        // Local avatar (old uploads)
+        $local_avatar = "assets/avatar/" . $user['avatar'];
+        $avatar_path = file_exists($local_avatar) ? $local_avatar : "assets/avatar/default.png";
+    }
+} else {
     $avatar_path = "assets/avatar/default.png";
 }
 
@@ -290,9 +297,16 @@ $(function(){
           </div>
         </div>
 
-        <?php if (!empty($post['image_url'])): ?>
-          <img src="<?= htmlspecialchars($post['image_url']) ?>" alt="Post image" style="margin-top:10px; border-radius:8px; max-width:100%;">
-        <?php endif; ?>
+     <?php if (!empty($post['image_url'])): ?>
+  <?php
+    $image_url = $post['image_url'];
+    // If it's a Cloudinary link, use as-is; otherwise, prepend local folder path
+    if (!preg_match('/^https?:\/\/res\.cloudinary\.com\//', $image_url)) {
+        $image_url = 'assets/uploads/' . $image_url;
+    }
+  ?>
+  <img src="<?= htmlspecialchars($image_url) ?>" alt="Post image" style="margin-top:10px; border-radius:8px; max-width:100%;">
+<?php endif; ?>
 
         <small style="color:#9aa;">Posted on <?= htmlspecialchars($post['created_at']) ?></small>
 

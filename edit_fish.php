@@ -2,6 +2,19 @@
 include 'db.php';
 session_start();
 
+require 'vendor/autoload.php';
+
+use Cloudinary\Cloudinary;
+use Cloudinary\Api\Upload\UploadApi;
+
+$cloudinary = new Cloudinary([
+    'cloud' => [
+        'cloud_name' => 'your_cloud_name',
+        'api_key'    => 'your_api_key',
+        'api_secret' => 'your_api_secret'
+    ],
+]);
+
 if (!isset($_GET['id'])) {
     echo "Fish not found.";
     exit;
@@ -40,27 +53,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // ✅ Handle invasive countries (text)
     $invasive_countries = isset($_POST['invasive_country']) ? trim($_POST['invasive_country']) : "";
 
-    // Handle female image upload
-    if (isset($_FILES['image_file']) && $_FILES['image_file']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = 'uploads/';
-        $fileName = basename($_FILES['image_file']['name']);
-        $uploadFile = $uploadDir . $fileName;
-        move_uploaded_file($_FILES['image_file']['tmp_name'], $uploadFile);
-        $image_url = $uploadFile;
-    } else {
-        $image_url = $_POST['existing_image'];
-    }
+// Handle female image upload (Cloudinary)
+if (isset($_FILES['image_file']) && $_FILES['image_file']['error'] === UPLOAD_ERR_OK) {
+    $uploadResult = (new UploadApi())->upload($_FILES['image_file']['tmp_name'], [
+        'folder' => 'aquawiki/fishes/female'
+    ]);
+    $image_url = $uploadResult['secure_url']; // Cloudinary URL
+} else {
+    $image_url = $_POST['existing_image'];
+}
 
-    // Handle male image upload
-    if (isset($_FILES['male_image_file']) && $_FILES['male_image_file']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = 'uploads/';
-        $maleFileName = basename($_FILES['male_image_file']['name']);
-        $uploadMaleFile = $uploadDir . $maleFileName;
-        move_uploaded_file($_FILES['male_image_file']['tmp_name'], $uploadMaleFile);
-        $male_image_url = $uploadMaleFile;
-    } else {
-        $male_image_url = $_POST['existing_male_image'];
-    }
+
+// Handle male image upload (Cloudinary)
+if (isset($_FILES['male_image_file']) && $_FILES['male_image_file']['error'] === UPLOAD_ERR_OK) {
+    $uploadResultMale = (new UploadApi())->upload($_FILES['male_image_file']['tmp_name'], [
+        'folder' => 'aquawiki/fishes/male'
+    ]);
+    $male_image_url = $uploadResultMale['secure_url']; // Cloudinary URL
+} else {
+    $male_image_url = $_POST['existing_male_image'];
+}
+
 
     // ✅ Updated query with family + new size/longevity/shape fields
     $stmt = $conn->prepare("UPDATE fishes 
@@ -136,25 +149,13 @@ $location_query = urlencode($origin_location . ', ' . $first_country);
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Profile</title>
+  <link rel="stylesheet" href="edit_fish.css?v=<?= time() ?>">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700|Montserrat:400,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <title>Edit Fish</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 900px; margin: auto; padding: 20px; }
-        h2 { color: #007BFF; }
-        form { background: #f9f9f9; padding: 20px; border-radius: 10px; border: 1px solid #ccc; }
-        label { font-weight: bold; display: block; margin-top: 15px; }
-        input[type="text"], input[type="file"], select, textarea { width: 100%; padding: 8px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; resize: vertical; }
-        select[multiple] { height: 150px; }
-        img { max-width: 300px; display: block; margin-top: 10px; margin-bottom: 10px; }
-        .image-pair { display: flex; gap: 20px; margin-bottom: 20px; }
-        .image-pair div { flex: 1; text-align: center; }
-        .compatibility-section { margin-top: 30px; margin-bottom: 30px; background: #eef6ff; padding: 15px; border-radius: 8px; }
-        .note { font-size: 13px; color: #555; margin-top: 5px; }
-        button { background-color: #28a745; color: white; border: none; padding: 10px 16px; font-size: 16px; border-radius: 5px; cursor: pointer; }
-        button:hover { background-color: #218838; }
-        a.back { display: inline-block; margin-bottom: 20px; color: #007BFF; text-decoration: none; }
-        a.back:hover { text-decoration: underline; }
-        iframe.map { width: 100%; height: 300px; border: 0; border-radius: 10px; margin-top: 10px; }
-    </style>
 </head>
 <body>
 
