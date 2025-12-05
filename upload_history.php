@@ -45,25 +45,27 @@ $conn->close();
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload History</title>
      <link rel="stylesheet" href="upload_history.css?v=<?= time() ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,700|Montserrat:400,700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <style>  </style>
 
 <!-- NAVBAR -->
-<div class="navbar">
-  <div class="logo"><i class="fas fa-water"></i> AquaWiki</div>
+<nav class="navbar">
+  <div class="logo" onclick="location.href='home.php'" style="cursor:pointer;">
+    <img src="uploads/logo.png" alt="AquaWiki Logo">
+  </div>
 
   <div class="menu">
     <a href="home.php">Home</a>
 
     <div class="dropdown">
-      <a href="browse.php" class="dropbtn">Browse<i class="fas fa-caret-down"></i></a>
+      <a href="browse.php" class="dropbtn">Browse <i class="fas fa-caret-down"></i></a>
       <div class="dropdown-content">
-         <a href="browse.php">Browse Fish</a>
+        <a href="browse.php">Browse Fish</a>
         <a href="browse_plants.php">Aquatic Plants</a>
       </div>
     </div>
@@ -73,7 +75,8 @@ $conn->close();
     <div class="dropdown">
       <a href="profile.php" class="dropbtn">Profile <i class="fas fa-caret-down"></i></a>
       <div class="dropdown-content">
-        <a href="upload_history.php">Upload History</a>
+           <a href="profile.php">Profile</a>
+        <a href="upload_history.php">Uploads</a>
         <?php if (isset($_SESSION['user'])): ?>
           <a href="logout.php">Logout</a>
         <?php else: ?>
@@ -84,24 +87,32 @@ $conn->close();
   </div>
 
   <div class="auth">
-    <a href="notification.php" id="notifBtn" style="position:relative; margin-right:8px;">
-      <i class="fas fa-bell"></i>
-      <span id="notifCount" style="
-        background:red;
-        color:white;
-        border-radius:50%;
-        padding:2px 6px;
-        font-size:12px;
-        position:absolute;
-        top:-6px;
-        right:-10px;
-        <?= $notifCount > 0 ? '' : 'display:none;' ?>
-      "><?= (int)$notifCount ?></span>
-    </a>
+    <?php if (isset($_SESSION['user'])): ?>
+      <!-- Show notification bell only for logged-in users -->
+      <a href="notification.php" id="notifBtn" style="position:relative;">
+        <i class="fas fa-bell"></i>
+        <span id="notifCount" style="
+          background:red;
+          color:white;
+          border-radius:50%;
+          padding:2px 6px;
+          font-size:12px;
+          position:absolute;
+          top:-6px;
+          right:-10px;
+          <?= $notifCount > 0 ? '' : 'display:none;' ?>
+        "><?= (int)$notifCount ?></span>
+      </a>
+    <?php else: ?>
+      <!-- Show user icon/login if not logged in -->
+      <a href="login.php" style="display:inline-flex; align-items:center; gap:4px;">
+        <i class="fas fa-user"></i>
+      </a>
+    <?php endif; ?>
   </div>
-</div>
+</nav>
 
-<!-- OPTIONAL: keep this small JS for mobile tap dropdown support -->
+<!-- OPTIONAL: small JS for mobile tap dropdown support -->
 <script>
 document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
   let firstTapTime = 0;
@@ -111,18 +122,13 @@ document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
       const dropdown = btn.parentElement;
       const now = Date.now();
 
-      // If dropdown is not open yet → open it, prevent navigation
       if (!dropdown.classList.contains('open')) {
         e.preventDefault();
         dropdown.classList.add('open');
         firstTapTime = now;
-      } 
-      // If tapped again quickly (within 1.5s) → follow link
-      else if (now - firstTapTime < 1500) {
+      } else if (now - firstTapTime < 1500) {
         window.location.href = btn.getAttribute('href');
-      } 
-      // Otherwise → reset timer (prevents getting stuck)
-      else {
+      } else {
         e.preventDefault();
         firstTapTime = now;
       }
@@ -131,6 +137,7 @@ document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
 });
 </script>
 
+<div class="main-content">
 <h1>Your Upload History</h1>
 
 <div class="upload-container">

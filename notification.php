@@ -38,6 +38,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['notif_id']) && isset(
     exit;
 }
 
+function timeAgo($datetime) {
+    $timestamp = strtotime($datetime);
+    $diff = time() - $timestamp;
+
+    if ($diff < 60) return $diff . "s ago";
+    $minutes = floor($diff / 60);
+    if ($minutes < 60) return $minutes . "m ago";
+    $hours = floor($minutes / 60);
+    if ($hours < 24) return $hours . "h ago";
+    $days = floor($hours / 24);
+    if ($days < 7) return $days . "d ago";
+    $weeks = floor($days / 7);
+    if ($weeks < 4) return $weeks . "w ago";
+    $months = floor($weeks / 4);
+    if ($months < 12) return $months . "mo ago";
+    $years = floor($months / 12);
+    return $years . "y ago";
+}
+
 // If a notification is clicked
 if (isset($_GET['open'])) {
     $notif_id = (int)$_GET['open'];
@@ -69,6 +88,9 @@ $stmt = $conn->prepare("
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
+
+$conn->close();
+
 ?>
 
 <!DOCTYPE html>
@@ -78,63 +100,59 @@ $result = $stmt->get_result();
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Notifications</title>
   <link rel="stylesheet" href="notification.css?v=<?= time() ?>">
+  <link rel="icon" href="uploads/logo-16.png" sizes="16x16" type="image/png">
+<link rel="icon" href="uploads/logo-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="uploads/logo-48.png" sizes="48x48" type="image/png">
+<link rel="icon" href="uploads/logo-512.png" sizes="512x512" type="image/png">
   <link href="https://fonts.googleapis.com/css?family=Roboto:400,700|Montserrat:400,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
   <!-- NAVBAR -->
-<div class="navbar">
-    <div class="logo"><i class="fas fa-water"></i> AquaWiki</div>
+<nav class="navbar">
+  <div class="logo" onclick="location.href='home.php'" style="cursor:pointer;">
+    <img src="uploads/logo.png" alt="AquaWiki Logo">
+  </div>
 
-    <div class="menu">
-        <a href="home.php">Home</a>
+  <div class="menu">
+    <a href="home.php">Home</a>
 
-        <div class="dropdown">
-            <a href="browse.php" class="dropbtn">Browse<i class="fas fa-caret-down"></i></a>
-            <div class="dropdown-content">
-                <a href="browse.php">Browse Fish</a>
-                <a href="browse_plants.php">Aquatic Plants</a>
-            </div>
-        </div>
-
-        <a href="community.php">Community</a>
-
-        <div class="dropdown">
-            <a href="profile.php" class="dropbtn">Profile <i class="fas fa-caret-down"></i></a>
-            <div class="dropdown-content">
-                <a href="upload_history.php">Upload History</a>
-                <?php if (isset($_SESSION['user'])): ?>
-                    <a href="logout.php">Logout</a>
-                <?php else: ?>
-                    <a href="login.php">Login</a>
-                <?php endif; ?>
-            </div>
-        </div>
+    <div class="dropdown">
+      <a href="browse.php" class="dropbtn">Browse <i class="fas fa-caret-down"></i></a>
+      <div class="dropdown-content">
+        <a href="browse.php">Browse Fish</a>
+        <a href="browse_plants.php">Aquatic Plants</a>
+      </div>
     </div>
 
-    <div class="auth">
+    <a href="community.php">Community</a>
+
+    <div class="dropdown">
+      <a href="profile.php" class="dropbtn">Profile <i class="fas fa-caret-down"></i></a>
+      <div class="dropdown-content">
+          <a href="profile.php">Profile</a>
+        <a href="upload_history.php">Uploads</a>
         <?php if (isset($_SESSION['user'])): ?>
-            <a href="notification.php" id="notifBtn" style="position:relative; margin-right:8px;">
-                <i class="fas fa-bell"></i>
-                <span id="notifCount" style="
-                    background:red;
-                    color:white;
-                    border-radius:50%;
-                    padding:2px 6px;
-                    font-size:12px;
-                    position:absolute;
-                    top:-6px;
-                    right:-10px;
-                    <?= $notifCount > 0 ? '' : 'display:none;' ?>
-                "><?= (int)$notifCount ?></span>
-            </a>
+          <a href="logout.php">Logout</a>
         <?php else: ?>
-            <a href="login.php" style="display:inline-flex; align-items:center; gap:4px;">
-                <i class="fas fa-user"></i> Login
-            </a>
+          <a href="login.php">Login</a>
         <?php endif; ?>
+      </div>
     </div>
+  </div>
+
+<div class="auth">
+  <a href="notification.php" id="notifBtn">
+    <i class="fas fa-bell"></i>
+    <span id="notifCount" class="<?= $notifCount > 0 ? '' : 'hidden' ?>">
+      <?= (int)$notifCount ?>
+    </span>
+  </a>
 </div>
+</nav>
+
+
+<!-- OPTIONAL: small JS for mobile tap dropdown support -->
 <script>
 document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
   let firstTapTime = 0;
@@ -144,18 +162,13 @@ document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
       const dropdown = btn.parentElement;
       const now = Date.now();
 
-      // If dropdown is not open yet → open it, prevent navigation
       if (!dropdown.classList.contains('open')) {
         e.preventDefault();
         dropdown.classList.add('open');
         firstTapTime = now;
-      } 
-      // If tapped again quickly (within 1.5s) → follow link
-      else if (now - firstTapTime < 1500) {
+      } else if (now - firstTapTime < 1500) {
         window.location.href = btn.getAttribute('href');
-      } 
-      // Otherwise → reset timer (prevents getting stuck)
-      else {
+      } else {
         e.preventDefault();
         firstTapTime = now;
       }
@@ -163,6 +176,7 @@ document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
   });
 });
 </script>
+
 
 <div class="notif-container">
   <h2>Notifications</h2>
@@ -188,7 +202,7 @@ document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
                 did something
               <?php endif; ?>
             </p>
-            <small><?= htmlspecialchars($row['created_at']) ?></small>
+      <small><?= timeAgo($row['created_at']) ?></small>
           </a>
         </div>
         <!-- Delete notification button -->
@@ -245,6 +259,6 @@ document.querySelectorAll('.notif-delete-form').forEach(form => {
   });
 });
 </script>
-
+<?php include 'footer.php'; ?>
 </body>
 </html>

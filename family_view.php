@@ -33,6 +33,9 @@ $stmt->bind_param("s", $family);
 $stmt->execute();
 $result = $stmt->get_result();
 $totalFishes = $result->num_rows;
+
+$conn->close();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -41,65 +44,60 @@ $totalFishes = $result->num_rows;
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Family: <?php echo htmlspecialchars($family); ?></title>
 <link rel="stylesheet" href="origin.css?v=<?= time() ?>">
+<link rel="icon" href="uploads/logo-16.png" sizes="16x16" type="image/png">
+<link rel="icon" href="uploads/logo-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="uploads/logo-48.png" sizes="48x48" type="image/png">
+<link rel="icon" href="uploads/logo-512.png" sizes="512x512" type="image/png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css?family=Roboto:400,700|Montserrat:400,700&display=swap" rel="stylesheet">
 </head>
 <body>
 
 <!-- NAVBAR -->
-<div class="navbar">
-    <div class="logo"><i class="fas fa-water"></i> AquaWiki</div>
+<nav class="navbar">
+  <div class="logo" onclick="location.href='home.php'" style="cursor:pointer;">
+    <img src="uploads/logo.png" alt="AquaWiki Logo">
+  </div>
 
-    <div class="menu">
-        <a href="home.php">Home</a>
+  <div class="menu">
+    <a href="home.php">Home</a>
 
-        <div class="dropdown">
-            <a href="browse.php" class="dropbtn">Browse <i class="fas fa-caret-down"></i></a>
-            <div class="dropdown-content">
-                <a href="browse.php">Browse Fish</a>
-                <a href="browse_plants.php">Aquatic Plants</a>
-            </div>
-        </div>
-
-        <a href="community.php">Community</a>
-
-        <div class="dropdown">
-            <a href="profile.php" class="dropbtn">Profile <i class="fas fa-caret-down"></i></a>
-            <div class="dropdown-content">
-                <a href="upload_history.php">Upload History</a>
-                <?php if (isset($_SESSION['user'])): ?>
-                    <a href="logout.php">Logout</a>
-                <?php else: ?>
-                    <a href="login.php">Login</a>
-                <?php endif; ?>
-            </div>
-        </div>
+    <div class="dropdown">
+      <a href="browse.php" class="dropbtn">Browse <i class="fas fa-caret-down"></i></a>
+      <div class="dropdown-content">
+        <a href="browse.php">Browse Fish</a>
+        <a href="browse_plants.php">Aquatic Plants</a>
+      </div>
     </div>
 
-    <div class="auth">
+    <a href="community.php">Community</a>
+
+    <div class="dropdown">
+      <a href="profile.php" class="dropbtn">Profile <i class="fas fa-caret-down"></i></a>
+      <div class="dropdown-content">
+          <a href="profile.php">Profile</a>
+        <a href="upload_history.php">Uploads</a>
         <?php if (isset($_SESSION['user'])): ?>
-            <a href="notification.php" id="notifBtn" style="position:relative; margin-right:8px;">
-                <i class="fas fa-bell"></i>
-                <span id="notifCount" style="
-                    background:red;
-                    color:white;
-                    border-radius:50%;
-                    padding:2px 6px;
-                    font-size:12px;
-                    position:absolute;
-                    top:-6px;
-                    right:-10px;
-                    <?= $notifCount > 0 ? '' : 'display:none;' ?>
-                "><?= (int)$notifCount ?></span>
-            </a>
+          <a href="logout.php">Logout</a>
         <?php else: ?>
-            <a href="login.php" style="display:inline-flex; align-items:center; gap:4px;">
-                <i class="fas fa-user"></i> Login
-            </a>
+          <a href="login.php">Login</a>
         <?php endif; ?>
+      </div>
     </div>
-</div>
+  </div>
 
+<div class="auth">
+  <a href="notification.php" id="notifBtn">
+    <i class="fas fa-bell"></i>
+    <span id="notifCount" class="<?= $notifCount > 0 ? '' : 'hidden' ?>">
+      <?= (int)$notifCount ?>
+    </span>
+  </a>
+</div>
+</nav>
+
+
+<!-- OPTIONAL: small JS for mobile tap dropdown support -->
 <script>
 document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
   let firstTapTime = 0;
@@ -123,6 +121,8 @@ document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
   });
 });
 </script>
+
+
 
 <!-- HERO -->
 <div class="hero">
@@ -183,6 +183,8 @@ $(function(){
   });
 });
 </script>
+
+<?php include 'footer.php'; ?>
 
 </body>
 </html>

@@ -1,4 +1,7 @@
 <?php
+ob_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 include 'db.php';
 session_start();
 
@@ -8,6 +11,33 @@ if (!isset($_SESSION['user'])) {
 }
 
 $user_id = (int)$_SESSION['user']['id'];
+
+function timeAgo($datetime) {
+    $time = strtotime($datetime);
+    $diff = time() - $time;
+
+    if ($diff < 60) {
+        return 'Just now';
+    } elseif ($diff < 3600) {
+        $mins = floor($diff / 60);
+        return $mins . ' min' . ($mins > 1 ? 's' : '') . ' ago';
+    } elseif ($diff < 86400) {
+        $hours = floor($diff / 3600);
+        return $hours . ' hour' . ($hours > 1 ? 's' : '') . ' ago';
+    } elseif ($diff < 604800) {
+        $days = floor($diff / 86400);
+        return $days . ' day' . ($days > 1 ? 's' : '') . ' ago';
+    } elseif ($diff < 2592000) {
+        $weeks = floor($diff / 604800);
+        return $weeks . ' week' . ($weeks > 1 ? 's' : '') . ' ago';
+    } elseif ($diff < 31536000) {
+        $months = floor($diff / 2592000);
+        return $months . ' month' . ($months > 1 ? 's' : '') . ' ago';
+    } else {
+        $years = floor($diff / 31536000);
+        return $years . ' year' . ($years > 1 ? 's' : '') . ' ago';
+    }
+}
 
 function intValSafe($v){ return (int)$v; }
 
@@ -232,9 +262,9 @@ if (isset($_GET['fetch_comments'])) {
                         <?= htmlspecialchars($comment['full_name'] ?: $comment['username']) ?>
                     </a><br>
                     <?= nl2br(htmlspecialchars($comment['comment'])) ?>
-                    <div style="font-size:12px; color:#555; margin-top:2px;">
-                        <?= htmlspecialchars($comment['created_at']) ?>
-                    </div>
+                   <div style="font-size:12px; color:#555; margin-top:2px;" title="<?= htmlspecialchars($comment['created_at']) ?>">
+    <?= timeAgo($comment['created_at']) ?>
+</div>
                 </div>
             </div>
 
@@ -279,9 +309,9 @@ if (isset($_GET['fetch_comments'])) {
                                 <?= htmlspecialchars($reply['full_name'] ?: $reply['username']) ?>
                             </a><br>
                             <?= nl2br(htmlspecialchars($reply['reply'])) ?>
-                            <div style="font-size:11px; color:#555; margin-top:2px;">
-                                <?= htmlspecialchars($reply['created_at']) ?>
-                            </div>
+                         <div style="font-size:11px; color:#555; margin-top:2px;" title="<?= htmlspecialchars($reply['created_at']) ?>">
+    <?= timeAgo($reply['created_at']) ?>
+</div>
                         </div>
                     </div>
                     <?php
@@ -337,6 +367,9 @@ $posts = $conn->query("
     JOIN users u ON p.user_id = u.id
     ORDER BY p.created_at DESC
 ");
+
+$conn->close();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -345,64 +378,59 @@ $posts = $conn->query("
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Community — AquaWiki</title>
     <link rel="stylesheet" href="community.css?v=<?= time() ?>">
+    <link rel="icon" href="uploads/logo-16.png" sizes="16x16" type="image/png">
+    <link rel="icon" href="uploads/logo-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="uploads/logo-48.png" sizes="48x48" type="image/png">
+    <link rel="icon" href="uploads/logo-512.png" sizes="512x512" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
 <!-- NAVBAR -->
-<div class="navbar">
-    <div class="logo"><i class="fas fa-water"></i> AquaWiki</div>
+<nav class="navbar">
+  <div class="logo" onclick="location.href='home.php'" style="cursor:pointer;">
+    <img src="uploads/logo.png" alt="AquaWiki Logo">
+  </div>
 
-    <div class="menu">
-        <a href="home.php">Home</a>
+  <div class="menu">
+    <a href="home.php">Home</a>
 
-        <div class="dropdown">
-            <a href="browse.php" class="dropbtn">Browse<i class="fas fa-caret-down"></i></a>
-            <div class="dropdown-content">
-                <a href="browse.php">Browse Fish</a>
-                <a href="browse_plants.php">Aquatic Plants</a>
-            </div>
-        </div>
-
-        <a href="community.php">Community</a>
-
-        <div class="dropdown">
-            <a href="profile.php" class="dropbtn">Profile <i class="fas fa-caret-down"></i></a>
-            <div class="dropdown-content">
-                <a href="upload_history.php">Upload History</a>
-                <?php if (isset($_SESSION['user'])): ?>
-                    <a href="logout.php">Logout</a>
-                <?php else: ?>
-                    <a href="login.php">Login</a>
-                <?php endif; ?>
-            </div>
-        </div>
+    <div class="dropdown">
+      <a href="browse.php" class="dropbtn">Browse <i class="fas fa-caret-down"></i></a>
+      <div class="dropdown-content">
+        <a href="browse.php">Browse Fish</a>
+        <a href="browse_plants.php">Aquatic Plants</a>
+      </div>
     </div>
 
-    <div class="auth">
+    <a href="community.php">Community</a>
+
+    <div class="dropdown">
+      <a href="profile.php" class="dropbtn">Profile <i class="fas fa-caret-down"></i></a>
+      <div class="dropdown-content">
+          <a href="profile.php">Profile</a>
+        <a href="upload_history.php">Uploads</a>
         <?php if (isset($_SESSION['user'])): ?>
-            <a href="notification.php" id="notifBtn" style="position:relative; margin-right:8px;">
-                <i class="fas fa-bell"></i>
-                <span id="notifCount" style="
-                    background:red;
-                    color:white;
-                    border-radius:50%;
-                    padding:2px 6px;
-                    font-size:12px;
-                    position:absolute;
-                    top:-6px;
-                    right:-10px;
-                    <?= $notifCount > 0 ? '' : 'display:none;' ?>
-                "><?= (int)$notifCount ?></span>
-            </a>
+          <a href="logout.php">Logout</a>
         <?php else: ?>
-            <a href="login.php" style="display:inline-flex; align-items:center; gap:4px;">
-                <i class="fas fa-user"></i> Login
-            </a>
+          <a href="login.php">Login</a>
         <?php endif; ?>
+      </div>
     </div>
-</div>
+  </div>
 
+<div class="auth">
+  <a href="notification.php" id="notifBtn">
+    <i class="fas fa-bell"></i>
+    <span id="notifCount" class="<?= $notifCount > 0 ? '' : 'hidden' ?>">
+      <?= (int)$notifCount ?>
+    </span>
+  </a>
+</div>
+</nav>
+
+
+<!-- OPTIONAL: small JS for mobile tap dropdown support -->
 <script>
 document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
   let firstTapTime = 0;
@@ -412,18 +440,13 @@ document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
       const dropdown = btn.parentElement;
       const now = Date.now();
 
-      // If dropdown is not open yet → open it, prevent navigation
       if (!dropdown.classList.contains('open')) {
         e.preventDefault();
         dropdown.classList.add('open');
         firstTapTime = now;
-      } 
-      // If tapped again quickly (within 1.5s) → follow link
-      else if (now - firstTapTime < 1500) {
+      } else if (now - firstTapTime < 1500) {
         window.location.href = btn.getAttribute('href');
-      } 
-      // Otherwise → reset timer (prevents getting stuck)
-      else {
+      } else {
         e.preventDefault();
         firstTapTime = now;
       }
@@ -456,7 +479,9 @@ document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
                     <a href="profile.php?user=<?= (int)$post['user_id'] ?>" style="text-decoration:none; font-weight:bold;">
                         <?= htmlspecialchars($post['full_name'] ?: $post['username']) ?>
                     </a>
-                    <div style="font-size:12px; color:#555;"><?= htmlspecialchars($post['created_at']) ?></div>
+                <div style="font-size:12px; color:#555;" title="<?= htmlspecialchars($post['created_at']) ?>">
+    <?= timeAgo($post['created_at']) ?>
+</div>
                 </div>
             </div>
 
@@ -626,6 +651,8 @@ function toggleReplies(commentId) {
     }
 }
 </script>
+
+<?php include 'footer.php'; ?>
 
 </body>
 </html>

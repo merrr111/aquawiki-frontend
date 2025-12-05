@@ -1,4 +1,11 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Log errors to a file in the same directory
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error_log.txt');
 include 'db.php';
 session_start();
 
@@ -43,6 +50,10 @@ if (isset($_POST['register'])) {
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>AquaWiki - Register</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link rel="icon" href="uploads/logo-16.png" sizes="16x16" type="image/png">
+<link rel="icon" href="uploads/logo-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="uploads/logo-48.png" sizes="48x48" type="image/png">
+<link rel="icon" href="uploads/logo-512.png" sizes="512x512" type="image/png">
   <style>
     :root{
       --aqua-1: #00c6ff;

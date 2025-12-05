@@ -62,59 +62,104 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <title>Edit Plant</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #e8f5e9, #f1f8f6);
-            margin: 0;
-            padding: 40px;
-            display: flex;
-            justify-content: center;
-        }
-        .container {
-            background-color: #ffffff;
-            padding: 30px 40px;
-            border-radius: 15px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
-            width: 100%;
-            max-width: 700px;
-        }
-        h2 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #2e7d32;
-        }
-        form {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 15px;
-        }
-        input, textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-        }
-        textarea { min-height: 100px; }
-        button {
-            background: #4caf50;
-            color: #fff;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        button:hover { background: #388e3c; }
-        .back {
-            display: inline-block;
-            margin-bottom: 15px;
-            text-decoration: none;
-            color: #1976d2;
-        }
-        img {
-            margin-top: 10px;
-            max-width: 150px;
-            border-radius: 10px;
-        }
+/* ===== GENERAL STYLES ===== */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f5f5f5; /* light gray background */
+    margin: 0;
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    background-color: #fff;
+    padding: 30px 40px;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    width: 100%;
+    max-width: 700px;
+}
+
+h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #555; /* gray title */
+}
+
+/* ===== FORM ELEMENTS ===== */
+form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+input, textarea, select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+textarea {
+    min-height: 100px;
+}
+
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: #fff url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D'10'%20height%3D'5'%20xmlns%3D'http://www.w3.org/2000/svg'%3E%3Cpath%20d%3D'M0%200l5%205%205-5z'%20fill%3D'%23666'%2F%3E%3C%2Fsvg%3E") no-repeat right 12px center;
+    background-size: 10px 5px;
+}
+
+/* ===== BUTTONS ===== */
+button, .back-button {
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-block;
+    text-decoration: none;
+    text-align: center;
+    transition: background 0.3s ease;
+}
+
+button {
+    background: #aaa; /* gray */
+    color: #fff;
+    margin-top: 8px;
+}
+
+button:hover {
+    background: #888;
+}
+
+.back-button {
+    background: #aaa;
+    color: #fff;
+    margin-bottom: 15px;
+}
+
+.back-button:hover {
+    background: #888;
+}
+
+/* ===== IMAGE PREVIEW ===== */
+img {
+    margin-top: 10px;
+    max-width: 150px;
+    border-radius: 10px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .container { padding: 20px; }
+    input, textarea, select, button { font-size: 13px; padding: 10px; }
+}
+
     </style>
 </head>
 <body>

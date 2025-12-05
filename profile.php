@@ -1,6 +1,52 @@
 <?php
-include 'db.php';
+ob_start();
 session_start();
+include 'db.php';
+error_reporting(0);
+
+if (isset($_POST['delete_post'])) {
+    if (!isset($_SESSION['user']['id'])) {
+        echo "unauthorized";
+        exit;
+    }
+
+    $post_id = (int)$_POST['post_id'];
+    $uid = (int)$_SESSION['user']['id'];
+
+    // Check if the post belongs to the logged-in user
+    $check = $conn->prepare("SELECT id FROM community_posts WHERE id = ? AND user_id = ?");
+    $check->bind_param("ii", $post_id, $uid);
+    $check->execute();
+    $res = $check->get_result();
+
+    if ($res->num_rows > 0) {
+        // 1️⃣ Delete related notifications
+        $stmt1 = $conn->prepare("DELETE FROM notifications WHERE post_id = ?");
+        $stmt1->bind_param("i", $post_id);
+        $stmt1->execute();
+
+        // 2️⃣ Delete related comments
+        $stmt2 = $conn->prepare("DELETE FROM community_comments WHERE post_id = ?");
+        $stmt2->bind_param("i", $post_id);
+        $stmt2->execute();
+
+        // 3️⃣ Delete related likes
+        $stmt3 = $conn->prepare("DELETE FROM community_likes WHERE post_id = ?");
+        $stmt3->bind_param("i", $post_id);
+        $stmt3->execute();
+
+        // 4️⃣ Finally, delete the post
+        $del = $conn->prepare("DELETE FROM community_posts WHERE id = ?");
+        $del->bind_param("i", $post_id);
+        $del->execute();
+
+        echo "deleted";
+    } else {
+        echo "unauthorized";
+    }
+    exit;
+}
+
 
 /* ✅ Handle inline post update request */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'], $_POST['title'], $_POST['body'])) {
@@ -100,6 +146,7 @@ $stmt2 = $conn->prepare("
 $stmt2->bind_param("ii", $_SESSION['user']['id'], $user_id);
 $stmt2->execute();
 $posts = $stmt2->get_result();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -108,7 +155,10 @@ $posts = $stmt2->get_result();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($user['full_name'] ?: $user['username']) ?> — Profile</title>
     <link rel="stylesheet" href="profile.css?v=<?= time() ?>">
-
+<link rel="icon" href="uploads/logo-16.png" sizes="16x16" type="image/png">
+<link rel="icon" href="uploads/logo-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="uploads/logo-48.png" sizes="48x48" type="image/png">
+<link rel="icon" href="uploads/logo-512.png" sizes="512x512" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
@@ -118,68 +168,55 @@ $posts = $stmt2->get_result();
     </style>
 </head>
 <body>
- <!-- NAVBAR -->
-<div class="navbar">
-    <div class="logo"><i class="fas fa-water"></i> AquaWiki</div>
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="logo" onclick="location.href='home.php'" style="cursor:pointer;">
+    <img src="uploads/logo.png" alt="AquaWiki Logo">
+  </div>
 
-    <div class="menu">
-        <a href="home.php">Home</a>
+  <div class="menu">
+    <a href="home.php">Home</a>
 
-        <div class="dropdown">
-            <a href="browse.php" class="dropbtn">Browse <i class="fas fa-caret-down"></i></a>
-            <div class="dropdown-content">
-                <a href="browse.php">Browse Fish</a>
-                <a href="browse_plants.php">Aquatic Plants</a>
-            </div>
-        </div>
-
-        <a href="community.php">Community</a>
-
-        <div class="dropdown">
-            <a href="profile.php" class="dropbtn">Profile <i class="fas fa-caret-down"></i></a>
-            <div class="dropdown-content">
-                <a href="upload_history.php">Upload History</a>
-                <?php if (isset($_SESSION['user'])): ?>
-                    <a href="logout.php">Logout</a>
-                <?php else: ?>
-                    <a href="login.php">Login</a>
-                <?php endif; ?>
-            </div>
-        </div>
+    <div class="dropdown">
+      <a href="browse.php" class="dropbtn">Browse <i class="fas fa-caret-down"></i></a>
+      <div class="dropdown-content">
+        <a href="browse.php">Browse Fish</a>
+        <a href="browse_plants.php">Aquatic Plants</a>
+      </div>
     </div>
 
-    <div class="auth">
+    <a href="community.php">Community</a>
+
+    <div class="dropdown">
+      <a href="profile.php" class="dropbtn">Profile <i class="fas fa-caret-down"></i></a>
+      <div class="dropdown-content">
+          <a href="profile.php">Profile</a>
+        <a href="upload_history.php">Uploads</a>
         <?php if (isset($_SESSION['user'])): ?>
-            <a href="notification.php" id="notifBtn" style="position:relative; margin-right:8px;">
-                <i class="fas fa-bell"></i>
-                <span id="notifCount" style="
-                    background:red;
-                    color:white;
-                    border-radius:50%;
-                    padding:2px 6px;
-                    font-size:12px;
-                    position:absolute;
-                    top:-6px;
-                    right:-10px;
-                    <?= $notifCount > 0 ? '' : 'display:none;' ?>
-                "><?= (int)$notifCount ?></span>
-            </a>
+          <a href="logout.php">Logout</a>
         <?php else: ?>
-            <a href="login.php" style="display:inline-flex; align-items:center; gap:4px;">
-                <i class="fas fa-user"></i> Login
-            </a>
+          <a href="login.php">Login</a>
         <?php endif; ?>
+      </div>
     </div>
+  </div>
+
+<div class="auth">
+  <a href="notification.php" id="notifBtn">
+    <i class="fas fa-bell"></i>
+    <span id="notifCount" class="<?= $notifCount > 0 ? '' : 'hidden' ?>">
+      <?= (int)$notifCount ?>
+    </span>
+  </a>
 </div>
+</nav>
 
-<!-- jQuery (for notifications + tap handling) -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+<!-- OPTIONAL: small JS for mobile tap dropdown support -->
 <script>
-// ✅ Mobile dropdown tap behavior
 document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
   let firstTapTime = 0;
-
+  
   btn.addEventListener('click', e => {
     if (window.innerWidth <= 900) {
       const dropdown = btn.parentElement;
@@ -198,40 +235,8 @@ document.querySelectorAll('.dropdown > .dropbtn').forEach(btn => {
     }
   });
 });
-
-<?php if (isset($_SESSION['user'])): ?>
-// ✅ Notification system
-$(function(){
-  function checkNotifications() {
-    $.get('community.php', { fetch_notifications: 1 }, function(count){
-      let c = parseInt(count) || 0;
-      if (c > 0) {
-        if ($("#notifCount").is(":hidden")) {
-          $("#notifCount").text(c).fadeIn(300);
-        } else {
-          $("#notifCount").text(c);
-        }
-      } else {
-        $("#notifCount").fadeOut(300);
-      }
-    });
-  }
-
-  // Auto refresh every 5s
-  setInterval(checkNotifications, 5000);
-  checkNotifications();
-
-  // Mark as read and redirect properly (mobile safe)
-  $("#notifBtn").on("click", function(e){
-    e.preventDefault();
-    $.post("mark_notifications_read.php", function(){
-      $("#notifCount").fadeOut(300);
-      setTimeout(() => window.location.href = "notification.php", 300);
-    });
-  });
-});
-<?php endif; ?>
 </script>
+
 
 <div class="wrap">
     <div class="profile-card">
@@ -269,9 +274,9 @@ $(function(){
               <a href="#" class="edit-inline" data-id="<?= $post['id'] ?>">
                 <i class="fa-solid fa-pen-to-square"></i> Edit
               </a>
-              <a href="#" class="delete-post" data-id="<?= $post['id'] ?>">
-                <i class="fa-solid fa-trash"></i> Delete
-              </a>
+             <a href="#" class="delete-post" data-id="<?= $post['id'] ?>">
+    <i class="fa-solid fa-trash"></i> Delete
+</a>
             </div>
           </div>
           <?php endif; ?>
@@ -297,16 +302,15 @@ $(function(){
           </div>
         </div>
 
-     <?php if (!empty($post['image_url'])): ?>
+   <?php if (!empty($post['image_url'])): ?>
   <?php
     $image_url = $post['image_url'];
-    // If it's a Cloudinary link, use as-is; otherwise, prepend local folder path
-    if (!preg_match('/^https?:\/\/res\.cloudinary\.com\//', $image_url)) {
-        $image_url = 'assets/uploads/' . $image_url;
+    if (!preg_match('/^https?:\/\//', $image_url)) {
     }
   ?>
   <img src="<?= htmlspecialchars($image_url) ?>" alt="Post image" style="margin-top:10px; border-radius:8px; max-width:100%;">
 <?php endif; ?>
+
 
         <small style="color:#9aa;">Posted on <?= htmlspecialchars($post['created_at']) ?></small>
 
@@ -541,5 +545,25 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
+<script>
+$(document).on('click', '.delete-post', function(e){
+    e.preventDefault();
+    let postId = $(this).data('id');
+    if(!confirm("Are you sure you want to delete this post?")) return;
+    $.post('profile.php', { delete_post: 1, post_id: postId }, function(resp){
+        resp = resp.trim();
+        if(resp === "deleted"){
+            // Use data-post-id selector instead of #post-id
+            $(".post[data-post-id='" + postId + "']").fadeOut();
+        } else {
+            alert("Failed to delete post. Try again.");
+            console.log(resp);
+        }
+    });
+});
+</script>
+
+
+<?php include 'footer.php'; ?>
 </body>
 </html>

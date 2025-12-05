@@ -1,21 +1,36 @@
 <?php
-if (!isset($_GET['q'])) {
-    http_response_code(400);
-    echo json_encode(["error" => "Missing query"]);
+// MUST be at the top to avoid HTML output
+header("Content-Type: application/json");
+error_reporting(0);
+
+// Check parameter
+if (!isset($_GET['q']) || trim($_GET['q']) === '') {
+    echo json_encode([]);
     exit;
 }
 
 $query = urlencode($_GET['q']);
 $url = "https://nominatim.openstreetmap.org/search?format=json&q=$query";
 
-// Initialize cURL
+// cURL request
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_USERAGENT, 'AquaWiki/1.0 (your_email@example.com)'); // Nominatim requires a user-agent
+
+// Nominatim requires a valid user agent
+curl_setopt($ch, CURLOPT_USERAGENT, 'AquaWiki/1.0 (admin@aquawiki.com)');
+
 $response = curl_exec($ch);
+$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
-header("Content-Type: application/json");
+// In case Nominatim blocks or fails → return empty array so JS doesn't break
+if (!$response || $httpcode !== 200) {
+    echo json_encode([]);
+    exit;
+}
+
+// Output only clean JSON
 echo $response;
+exit;
 ?>

@@ -20,13 +20,12 @@ if (isset($_GET['reset_user']) && is_numeric($_GET['reset_user'])) {
     exit;
 }
 
-
-
-// Fetch uploads grouped by user_id
+// Fetch uploads grouped by user_id, include matched_fish_id and user email
 $query = "
-    SELECT u.user_id, COUNT(*) AS total_uploads, MAX(u.upload_time) AS last_upload
+    SELECT u.user_id, usr.email, u.matched_fish_id, COUNT(*) AS total_uploads, MAX(u.upload_time) AS last_upload
     FROM user_uploads u
-    GROUP BY u.user_id
+    INNER JOIN users usr ON u.user_id = usr.id
+    GROUP BY u.user_id, u.matched_fish_id, usr.email
     ORDER BY last_upload DESC
 ";
 $result = $conn->query($query);
@@ -68,16 +67,18 @@ $result = $conn->query($query);
     <h2>User Uploads</h2>
     <table>
         <tr>
-            <th>User ID</th>
+            <th>Email</th>
             <th>Total Uploads</th>
             <th>Last Upload</th>
+            <th>Matched Fish ID</th>
             <th>Action</th>
         </tr>
         <?php while ($row = $result->fetch_assoc()): ?>
         <tr>
-            <td><?php echo $row['user_id']; ?></td>
+            <td><?php echo htmlspecialchars($row['email']); ?></td>
             <td><?php echo $row['total_uploads']; ?></td>
             <td><?php echo $row['last_upload']; ?></td>
+            <td><?php echo $row['matched_fish_id']; ?></td>
             <td>
                 <a href="admin_user_uploads.php?reset_user=<?php echo $row['user_id']; ?>" 
                    class="reset-btn" 

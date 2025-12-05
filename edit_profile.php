@@ -2,19 +2,6 @@
 include 'db.php';
 session_start();
 
-require 'vendor/autoload.php';
-
-use Cloudinary\Cloudinary;
-use Cloudinary\Api\Upload\UploadApi;
-
-$cloudinary = new Cloudinary([
-    'cloud' => [
-        'cloud_name' => 'your_cloud_name',
-        'api_key'    => 'your_api_key',
-        'api_secret' => 'your_api_secret'
-    ],
-]);
-
 if (!isset($_SESSION['user'])) {
     header("Location: login.php");
     exit;
@@ -53,21 +40,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $avatar = $_POST['avatar'];
     }
 
-  // --- handle uploaded custom avatar (Cloudinary) ---
-if (!empty($_FILES['custom_avatar']['name'])) {
-    try {
-        $uploadResult = (new UploadApi())->upload($_FILES['custom_avatar']['tmp_name'], [
-            'folder' => 'aquawiki/avatars',
-            'transformation' => [
-                ['width' => 300, 'height' => 300, 'crop' => 'fill']
-            ]
-        ]);
-        $avatar = $uploadResult['secure_url']; // Store the Cloudinary URL
-    } catch (Exception $e) {
-        error_log("Cloudinary Upload Error: " . $e->getMessage());
-    }
-}
+    // --- handle uploaded custom avatar ---
+    if (!empty($_FILES['custom_avatar']['name'])) {
+        $upload_dir = "assets/avatar/";
+        $file_name = basename($_FILES['custom_avatar']['name']);
+        $target_file = $upload_dir . uniqid("avatar_") . "_" . $file_name;
+        $file_type = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
 
+        // Allow only image types
+        $allowed_types = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (in_array($file_type, $allowed_types)) {
+            if (move_uploaded_file($_FILES['custom_avatar']['tmp_name'], $target_file)) {
+                $avatar = basename($target_file);
+            }
+        }
+    }
 
     // Update user info
     $sql_update = "UPDATE users SET full_name=?, bio=?, avatar=? WHERE id=?";

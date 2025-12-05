@@ -4,15 +4,17 @@ session_start();
 
 require 'vendor/autoload.php';
 
-use Cloudinary\Cloudinary;
+use Cloudinary\Configuration\Configuration;
 use Cloudinary\Api\Upload\UploadApi;
 
-$cloudinary = new Cloudinary([
-    'cloud' => [
-        'cloud_name' => 'your_cloud_name',
-        'api_key'    => 'your_api_key',
-        'api_secret' => 'your_api_secret'
-    ],
+// ✅ Proper Cloudinary configuration
+Configuration::instance([
+  'cloud' => [
+    'cloud_name' => 'dcsiuylpy',
+    'api_key'    => '386119783617198',
+    'api_secret' => 'Xgus7r3i4TgoPcL_3zfVAAiHLZI'
+  ],
+  'url' => ['secure' => true]
 ]);
 
 if (!isset($_GET['id'])) {
@@ -47,35 +49,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $territorial = $_POST['territorial'];
     $way_of_living = $_POST['way_of_living'];
 
-    // ✅ Handle countries (text)
+    // Handle countries
     $countries = isset($_POST['country']) ? trim($_POST['country']) : "";
-
-    // ✅ Handle invasive countries (text)
     $invasive_countries = isset($_POST['invasive_country']) ? trim($_POST['invasive_country']) : "";
 
-// Handle female image upload (Cloudinary)
-if (isset($_FILES['image_file']) && $_FILES['image_file']['error'] === UPLOAD_ERR_OK) {
-    $uploadResult = (new UploadApi())->upload($_FILES['image_file']['tmp_name'], [
-        'folder' => 'aquawiki/fishes/female'
-    ]);
-    $image_url = $uploadResult['secure_url']; // Cloudinary URL
-} else {
-    $image_url = $_POST['existing_image'];
-}
+    // ✅ Handle female image upload
+    $image_url = $_POST['existing_image']; // default to existing
+    if (!empty($_FILES['image_file']['name']) && $_FILES['image_file']['error'] === UPLOAD_ERR_OK) {
+        try {
+            $uploadResult = (new UploadApi())->upload($_FILES['image_file']['tmp_name'], [
+                'folder' => 'aquawiki/fishes/female'
+            ]);
+            $image_url = $uploadResult['secure_url'];
+        } catch (Exception $e) {
+            echo "❌ Female image upload failed: " . $e->getMessage();
+        }
+    }
 
+    // ✅ Handle male image upload
+    $male_image_url = $_POST['existing_male_image']; // default to existing
+    if (!empty($_FILES['male_image_file']['name']) && $_FILES['male_image_file']['error'] === UPLOAD_ERR_OK) {
+        try {
+            $uploadResultMale = (new UploadApi())->upload($_FILES['male_image_file']['tmp_name'], [
+                'folder' => 'aquawiki/fishes/male'
+            ]);
+            $male_image_url = $uploadResultMale['secure_url'];
+        } catch (Exception $e) {
+            echo "❌ Male image upload failed: " . $e->getMessage();
+        }
+    }
 
-// Handle male image upload (Cloudinary)
-if (isset($_FILES['male_image_file']) && $_FILES['male_image_file']['error'] === UPLOAD_ERR_OK) {
-    $uploadResultMale = (new UploadApi())->upload($_FILES['male_image_file']['tmp_name'], [
-        'folder' => 'aquawiki/fishes/male'
-    ]);
-    $male_image_url = $uploadResultMale['secure_url']; // Cloudinary URL
-} else {
-    $male_image_url = $_POST['existing_male_image'];
-}
-
-
-    // ✅ Updated query with family + new size/longevity/shape fields
+    // ✅ Update fish info
     $stmt = $conn->prepare("UPDATE fishes 
         SET name=?, description=?, female_description=?, male_description=?, average_size=?, max_size=?, longevity=?, shape=?, scientific_name=?, family=?, year_discovered=?, origin=?, country=?, invasive_country=?, type=?, image_url=?, image_male_url=?, sexual_difference=?, temp_range=?, ph_range=?, hardness_range=?, natural_habitat=?, breeding=?, sociability=?, territorial=?, way_of_living=?, diet_feeding=? 
         WHERE id=?");
@@ -113,7 +117,7 @@ if (isset($_FILES['male_image_file']) && $_FILES['male_image_file']['error'] ===
     );
     $stmt->execute();
 
-    // Update compatibility
+    // ✅ Update compatibility
     $conn->query("DELETE FROM fish_compatibility WHERE fish_id = $id");
     if (!empty($_POST['compatible_with'])) {
         foreach ($_POST['compatible_with'] as $compatible_id) {
@@ -145,6 +149,7 @@ $country_list = explode(',', $fish['country']);
 $first_country = trim($country_list[0] ?? '');
 $location_query = urlencode($origin_location . ', ' . $first_country);
 ?>
+
 
 <!DOCTYPE html>
 <html>

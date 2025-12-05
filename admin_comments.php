@@ -52,40 +52,61 @@ if (!$comments) {
     <meta charset="UTF-8">
     <title>Manage Comments</title>
     <style>
-        body { font-family: Arial, sans-serif; margin:0; display:flex; }
-        .sidebar {
-            width:200px;   
-            background:#4CAF50; 
-            height:100vh; 
-            color:#fff;
-            position:fixed; 
-            padding-top:20px;
+        body { 
+            font-family: Arial, sans-serif; 
+            margin:0; 
+            padding:0;
+            background:#f4f9f6;
         }
-        .sidebar h2 { 
-          text-align:center; 
-          margin-bottom:20px; }
-        .sidebar a {
-            display:block; 
-            color:#fff; 
-            padding:10px 20px; 
+
+        /* 🔙 Back Button */
+        .back-btn {
+            display:inline-block;
+            margin:15px;
+            padding:8px 14px;
+            background:#3bb77e;
+            color:white;
             text-decoration:none;
+            border-radius:6px;
+            font-size:14px;
+            transition:0.3s;
         }
-        .sidebar a:hover { 
-          background:#45a049; }
+        .back-btn:hover {
+            background:#2d8659;
+        }
+
         .main { 
-          margin-left:200px; 
-          padding:20px; 
-          flex:1; }
+            padding:20px;
+        }
+
+        h2 {
+            color:#2d8659;
+            margin-top:10px;
+        }
+
         table { 
-          width:100%; 
-          border-collapse:collapse; 
-          margin-top:20px; }
+            width:100%; 
+            border-collapse:collapse; 
+            margin-top:20px; 
+            background:white;
+            box-shadow:0 2px 6px rgba(0,0,0,0.1);
+        }
         th, td { 
-          border:1px solid #ccc; 
-          padding:8px; 
-          text-align:left; }
+            border:1px solid #ccc; 
+            padding:10px; 
+            text-align:left; 
+            font-size:14px;
+        }
+        th {
+            background:#3bb77e;
+            color:white;
+        }
+        tr:nth-child(even) {
+            background:#f9fdfb;
+        }
+
         .action-btn {
-            padding:4px 8px; 
+            padding:6px 10px; 
             color:#fff; 
             text-decoration:none; 
             border-radius:4px;
@@ -98,49 +119,45 @@ if (!$comments) {
     </style>
 </head>
 <body>
-  <div class="sidebar">
-    <h2>🐟 Admin</h2>
-    <a href="admin.php">Dashboard</a>
-    <a href="add_fish.php">Add Fish</a>
-    <a href="admin_feedback.php">Feedbacks</a>
-    <a href="admin_comments.php">Comments</a>
-    <a href="browse.php">Browse (User)</a>
-    <a href="logout.php">Logout</a>
-  </div>
-  <div class="main">
-    <h2>Manage Comments</h2>
-    <table>
-      <tr>
-        <th>Fish</th>
-        <th>User</th>
-        <th>Comment</th>
-        <th>Status</th>
-        <th>When</th>
-        <th>Actions</th>
-      </tr>
-      <?php while ($c = $comments->fetch_assoc()): ?>
-      <tr>
-        <td><?php echo htmlspecialchars($c['fish_name']); ?></td>
-        <td><?php echo htmlspecialchars($c['username']); ?></td>
-        <td><?php echo htmlspecialchars($c['text']); ?></td>
-        <td><?php echo $c['status'] ? 'Enabled' : 'Disabled'; ?></td>
-        <td><?php echo htmlspecialchars($c['created_at']); ?></td>
-        <td>
-          <a
-            class="action-btn <?php echo $c['status'] ? 'disable-btn' : 'enable-btn'; ?>"
-            href="admin_comments.php?toggle=1&id=<?php echo $c['id'];?>&status=<?php echo $c['status'];?>"
-          >
-            <?php echo $c['status'] ? 'Disable' : 'Enable'; ?>
-          </a>
-          <a
-            class="action-btn delete-btn"
-            href="admin_comments.php?delete=1&id=<?php echo $c['id'];?>"
-            onclick="return confirm('Delete this comment?')"
-          >Delete</a>
-        </td>
-      </tr>
-      <?php endwhile; ?>
-    </table>
-  </div>
+
+    <!-- 🔙 Back Button -->
+    <a class="back-btn" href="admin.php">← Back</a>
+
+    <div class="main">
+        <h2>Manage Comments</h2>
+        <table>
+            <tr>
+                <th>Fish</th>
+                <th>User</th>
+                <th>Comment</th>
+                <th>Status</th>
+                <th>When</th>
+                <th>Actions</th>
+            </tr>
+            <?php while ($c = $comments->fetch_assoc()): ?>
+            <tr>
+                <td><?php echo htmlspecialchars($c['fish_name']); ?></td>
+                <td><?php echo htmlspecialchars($c['username']); ?></td>
+                <td><?php echo htmlspecialchars($c['text']); ?></td>
+                <td><?php echo $c['status'] ? 'Enabled' : 'Disabled'; ?></td>
+                <td><?php echo htmlspecialchars($c['created_at']); ?></td>
+                <td>
+                <a
+                    class="action-btn <?php echo $c['status'] ? 'disable-btn' : 'enable-btn'; ?>"
+                    href="admin_comments.php?toggle=1&id=<?php echo $c['id'];?>&status=<?php echo $c['status'];?>"
+                >
+                    <?php echo $c['status'] ? 'Disable' : 'Enable'; ?>
+                </a>
+                <a
+                    class="action-btn delete-btn"
+                    href="admin_comments.php?delete=1&id=<?php echo $c['id'];?>"
+                    onclick="return confirm('Delete this comment?')"
+                >Delete</a>
+                </td>
+            </tr>
+            <?php endwhile; ?>
+        </table>
+    </div>
+
 </body>
 </html>
